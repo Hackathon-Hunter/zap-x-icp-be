@@ -3,16 +3,6 @@
     "zap-x-icp-backend": {
       "main": "src/zap-x-icp-backend/main.mo",
       "type": "motoko"
-    },
-    "zap-x-icp-frontend": {
-      "dependencies": [
-        "zap-x-icp-backend"
-      ],
-      "source": [
-        "src/zap-x-icp-frontend/dist"
-      ],
-      "type": "assets",
-      "workspace": "zap-x-icp-frontend"
     }
   },
   "defaults": {
