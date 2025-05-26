@@ -50,6 +50,7 @@ actor class Tokenmania() = this {
     principalId : Principal;
     name : Text;
     location : Text;
+    email: Text;
   };
 
   // Storage for merchants using HashMap
@@ -57,11 +58,12 @@ actor class Tokenmania() = this {
   private var merchants = HashMap.HashMap<Principal, Merchant>(0, Principal.equal, Principal.hash);
 
   // Create a new merchant
-  public func createMerchant(principalId : Principal, name : Text, location : Text) : async ?Merchant {
+  public func createMerchant(principalId : Principal, name : Text, location : Text, email: Text) : async ?Merchant {
     let newMerchant : Merchant = {
       principalId = principalId;
       name = name;
       location = location;
+      email= email
     };
 
     merchants.put(principalId, newMerchant);
