@@ -1,16 +1,36 @@
 {
+  "version": 1,
   "canisters": {
-    "zap-x-icp-backend": {
-      "main": "src/zap-x-icp-backend/main.mo",
-      "type": "motoko"
+    "ckIdr": {
+      "type": "motoko",
+      "main": "src/Token.mo"
+    },
+    "ckUsd": {
+      "type": "motoko", 
+      "main": "src/Token.mo"
+    },
+    "zapManager": {
+      "type": "motoko",
+      "main": "src/ZapManager.mo"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8001",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": ["https://icp0.io"],
+      "type": "persistent"
+    },
+    "playground": {
+      "type": "persistent",
+      "providers": ["https://icp0.io"]
     }
   },
   "defaults": {
     "build": {
-      "args": "",
       "packtool": ""
     }
-  },
-  "output_env_file": ".env",
-  "version": 1
+  }
 }

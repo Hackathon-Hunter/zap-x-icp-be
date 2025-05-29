@@ -1,3 +1,109 @@
+# ICP Token Project (ckIdr and CkUsd)
+
+This project implements two tokenization canisters on Internet Computer Protocol (ICP) - ckIdr and CkUsd - that can interact with a Motoko backend for transactions.
+
+## Project Overview
+
+The project consists of three main canisters:
+
+1. **CkIDr**: A token canister implementing the ckIdr token
+2. **CkUsd**: A token canister implementing the CkUsd token 
+3. **token_manager**: A manager canister that coordinates interactions between tokens
+
+## Features
+
+- **Token Features**:
+  - Minting and burning tokens (owner-only)
+  - Token transfers between accounts
+  - Balance tracking
+  - Transaction history
+
+- **Token Manager Features**:
+  - Centralized token management
+  - Account balance queries across tokens
+  - Access control (owner-only operations)
+
+## Getting Started
+
+### Prerequisites
+
+- [DFINITY Canister SDK](https://sdk.dfinity.org/docs/quickstart/local-quickstart.html)
+- [Node.js](https://nodejs.org/) (>= 14.x)
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+### Deployment
+
+To deploy the canisters locally:
+
+```bash
+dfx start --background
+dfx deploy
+```
+
+### Initialization
+
+After deployment, you need to initialize the token manager with the canister IDs:
+
+```bash
+dfx canister call token_manager initializeTokens "(principal \"$(dfx canister id CkIDr)\", principal \"$(dfx canister id CkUsd)\", principal \"$(dfx identity get-principal)\")"
+```
+
+## Usage Examples
+
+### Checking Token Info
+
+```bash
+dfx canister call token_manager getTokenInfo "(\"CkIDr\")"
+dfx canister call token_manager getAllTokensInfo
+```
+
+### Minting Tokens (Owner Only)
+
+```bash
+dfx canister call token_manager mint "(\"CkIDr\", principal \"YOUR_PRINCIPAL\", 1000000)"
+```
+
+### Checking Balances
+
+```bash
+dfx canister call token_manager getBalance "(principal \"YOUR_PRINCIPAL\", \"CkIDr\")"
+dfx canister call token_manager getAllBalances "(principal \"YOUR_PRINCIPAL\")"
+```
+
+### Transferring Tokens
+
+Regular transfer (from caller to recipient):
+```bash
+dfx canister call CkIDr transfer "(record { to = principal \"RECIPIENT_PRINCIPAL\"; amount = 10000; memo = null })"
+```
+
+Owner transfer (can transfer from any account):
+```bash
+dfx canister call token_manager ownerTransfer "(\"CkIDr\", principal \"FROM_PRINCIPAL\", principal \"TO_PRINCIPAL\", 10000)"
+```
+
+## Architecture
+
+Each token canister is an instance of the same Token class, but with different initialization parameters. The token manager coordinates interactions between these tokens.
+
+### Security Features
+
+- Only the owner can mint or burn tokens
+- Only the owner can perform transfers on behalf of other accounts
+- Transaction history is maintained for all operations
+
+## License
+
+This project is licensed under the MIT License.
+
 # `zap-x-icp`
 
 Welcome to your new `zap-x-icp` project and to the Internet Computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
