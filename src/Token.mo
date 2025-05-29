@@ -5,7 +5,7 @@ import Iter "mo:base/Iter";
 import Time "mo:base/Time";
 import Result "mo:base/Result";
 import Hash "mo:base/Hash";
-import Types "./Types";
+import TokenTypes "./TokenTypes";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Nat64 "mo:base/Nat64";
@@ -13,6 +13,7 @@ import Text "mo:base/Text";
 import Blob "mo:base/Blob";
 import Option "mo:base/Option";
 import Error "mo:base/Error";
+import Utils "./Utils";
 
 actor class Token(
     _name : Text,
@@ -35,38 +36,19 @@ actor class Token(
     private var balances = HashMap.HashMap<Principal, Nat>(10, Principal.equal, Principal.hash);
 
     private stable var nextTxId : Nat = 0;
-    private var transactions = HashMap.HashMap<Nat, Types.Transaction>(100, Nat.equal, Hash.hash);
+    private var transactions = HashMap.HashMap<Nat, TokenTypes.Transaction>(100, Nat.equal, Hash.hash);
 
-    public type Account = {
-        owner : Principal;
-        subaccount : ?Subaccount;
-    };
-
-    public type Subaccount = Blob;
+    public type Account = TokenTypes.Account;
+    public type Subaccount = TokenTypes.Subaccount;
     private let defaultSubaccount : Subaccount = Blob.fromArrayMut(Array.init(32, 0 : Nat8));
 
-    public type ICRC1TransferArgs = {
-        from_subaccount : ?Subaccount;
-        to : Account;
-        amount : Nat;
-        fee : ?Nat;
-        memo : ?Blob;
-        created_at_time : ?Nat64;
-    };
+    public type ICRC1TransferArgs = TokenTypes.ICRC1TransferArgs;
 
-    public type ICRC1TransferError = {
-        #BadFee : { expected_fee : Nat };
-        #BadBurn : { min_burn_amount : Nat };
-        #InsufficientFunds : { balance : Nat };
-        #TooOld;
-        #CreatedInFuture : { ledger_time : Nat64 };
-        #Duplicate : { duplicate_of : Nat };
-        #TemporarilyUnavailable;
-        #GenericError : { error_code : Nat; message : Text };
-    };
+    public type TransferResult = TokenTypes.TransferResult;
+    public type TransferError = TokenTypes.TransferError;
 
     private stable var balancesEntries : [(Principal, Nat)] = [];
-    private stable var transactionsEntries : [(Nat, Types.Transaction)] = [];
+    private stable var transactionsEntries : [(Nat, TokenTypes.Transaction)] = [];
 
     system func preupgrade() {
         balancesEntries := Iter.toArray(balances.entries());
@@ -105,7 +87,7 @@ actor class Token(
         };
     };
 
-    private func _transfer(from : Principal, to : Principal, amount : Nat) : Types.TransferResult {
+    private func _transfer(from : Principal, to : Principal, amount : Nat) : TransferResult {
         if (amount == 0) {
             return #Err(#InvalidAmount);
         };
@@ -130,7 +112,7 @@ actor class Token(
         let txId = nextTxId;
         nextTxId += 1;
 
-        let transaction : Types.Transaction = {
+        let transaction : TokenTypes.Transaction = {
             id = txId;
             from = from;
             to = to;
@@ -146,7 +128,7 @@ actor class Token(
         #Ok(txId);
     };
 
-    private func _mint(to : Principal, amount : Nat, memoText : ?Text) : Types.TransferResult {
+    private func _mint(to : Principal, amount : Nat, memoText : ?Text) : TransferResult {
         if (amount == 0) {
             return #Err(#InvalidAmount);
         };
@@ -167,7 +149,7 @@ actor class Token(
             case (?text) { ?text };
         };
 
-        let transaction : Types.Transaction = {
+        let transaction : TokenTypes.Transaction = {
             id = txId;
             from = owner; // Minting from owner
             to = to;
@@ -183,7 +165,7 @@ actor class Token(
         #Ok(txId);
     };
 
-    private func _burn(from : Principal, amount : Nat, memoText : ?Text) : Types.TransferResult {
+    private func _burn(from : Principal, amount : Nat, memoText : ?Text) : TransferResult {
         if (amount == 0) {
             return #Err(#InvalidAmount);
         };
@@ -208,7 +190,7 @@ actor class Token(
             case (?text) { ?text };
         };
 
-        let transaction : Types.Transaction = {
+        let transaction : TokenTypes.Transaction = {
             id = txId;
             from = from;
             to = owner;
@@ -252,41 +234,46 @@ actor class Token(
         getBalance(account);
     };
 
-    public shared (msg) func icrc1_transfer(args : ICRC1TransferArgs) : async Result.Result<Nat, ICRC1TransferError> {
+    public shared (msg) func icrc1_transfer(args : ICRC1TransferArgs) : async Result.Result<Nat, TokenTypes.ICRC1TransferError> {
         let fromAccount = {
             owner = msg.caller;
             subaccount = args.from_subaccount;
         };
-
+        
         let fromKey = accountToKey(fromAccount);
         let toKey = accountToKey(args.to);
-
+        
         let fromBalance = getBalance(fromAccount);
-
+        
+        // Check if sender has enough funds
         if (fromBalance < args.amount + fee) {
             return #err(#InsufficientFunds { balance = fromBalance });
         };
-
+        
+        // Check if the fee is correct
         if (Option.isSome(args.fee) and Option.unwrap(args.fee) != fee) {
             return #err(#BadFee { expected_fee = fee });
         };
-
+        
+        // Update balances
         balances.put(fromKey, fromBalance - args.amount - fee);
-
+        
         let toBalance = getBalance(args.to);
         balances.put(toKey, toBalance + args.amount);
-
+        
+        // Record transaction
         let txId = nextTxId;
         nextTxId += 1;
-
+        
         let memoText = switch (args.memo) {
             case (null) { null };
-            case (?blob) {
-                ?"ICRC1_TRANSFER";
+            case (?blob) { 
+                // Simple conversion - in practice you might want a more robust conversion
+                ?"ICRC1_TRANSFER" 
             };
         };
-
-        let transaction : Types.Transaction = {
+        
+        let transaction : TokenTypes.Transaction = {
             id = txId;
             from = fromKey;
             to = toKey;
@@ -296,10 +283,10 @@ actor class Token(
             memo = memoText;
             tokenSymbol = symbol;
         };
-
+        
         transactions.put(txId, transaction);
-
-        #ok(txId);
+        
+        #ok(txId)
     };
 
     public query func icrc1_supported_standards() : async [{
@@ -309,7 +296,7 @@ actor class Token(
         [{ name = "ICRC-1"; url = "https://github.com/dfinity/ICRC-1" }];
     };
 
-    public query func getTokenInfo() : async Types.TokenInfo {
+    public query func getTokenInfo() : async TokenTypes.TokenInfo {
         {
             name = name;
             symbol = symbol;
@@ -326,7 +313,7 @@ actor class Token(
         };
     };
 
-    public shared (msg) func zapManagerTransfer(to : Principal, amount : Nat, memo : ?Text) : async Types.TransferResult {
+    public shared (msg) func zapManagerTransfer(to : Principal, amount : Nat, memo : ?Text) : async TransferResult {
         // Verify the caller is the ZapManager canister
         if (msg.caller != zapManagerCanisterId) {
             return #Err(#Unauthorized);
@@ -335,7 +322,7 @@ actor class Token(
         _mint(to, amount, memo);
     };
 
-    public shared (msg) func mint(to : Principal, amount : Nat) : async Types.TransferResult {
+    public shared (msg) func mint(to : Principal, amount : Nat) : async TransferResult {
 
         if (
             msg.caller != owner and
@@ -348,7 +335,7 @@ actor class Token(
         _mint(to, amount, null);
     };
 
-    public shared (msg) func burn(from : Principal, amount : Nat) : async Types.TransferResult {
+    public shared (msg) func burn(from : Principal, amount : Nat) : async TransferResult {
         // Only owner can burn
         if (msg.caller != owner) {
             return #Err(#Unauthorized);
@@ -357,7 +344,7 @@ actor class Token(
         _burn(from, amount, null);
     };
 
-    public query func getTransaction(txId : Nat) : async ?Types.Transaction {
+    public query func getTransaction(txId : Nat) : async ?TokenTypes.Transaction {
         transactions.get(txId);
     };
 

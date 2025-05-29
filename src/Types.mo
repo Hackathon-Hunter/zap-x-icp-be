@@ -4,13 +4,11 @@ import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
+import TokenTypes "./TokenTypes";
 
 module {
-    // Account types
-    public type Account = {
-        owner : Principal;
-        subaccount : ?[Nat8];
-    };
+    // Account types - reuse from TokenTypes
+    public type Account = TokenTypes.Account;
 
     // Token types
     public type TransferResult = {
@@ -29,22 +27,9 @@ module {
         #GenericError : { error_code : Nat; message : Text };
     };
 
-    public type TokenInfo = {
-        name : Text;
-        symbol : Text;
-        decimals : Nat8;
-        totalSupply : Nat;
-        fee : Nat;
-    };
+    public type TokenInfo = TokenTypes.TokenInfo;
 
-    public type TokenTransferResult = {
-        #Ok : Nat;
-        #Err : {
-            #InvalidAmount;
-            #InsufficientBalance;
-            #Unauthorized;
-        };
-    };
+    public type TokenTransferResult = TokenTypes.TransferResult;
 
     // Token interface
     public type TokenActor = actor {
